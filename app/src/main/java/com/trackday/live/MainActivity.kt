@@ -216,7 +216,7 @@ fun LiveCameraAndSpeedScreen() {
                 .background(if (isStreaming) Color.Gray else Color.Red)
                 .clickable {
                     if (!isStreaming) {
-                        if (youtubeStreamKey == "COLE_SUA_CHAVE_AQUI") {
+                        if (youtubeStreamKey == "pqf8-ambp-ayug-978r-c5a3") {
                             Toast.makeText(context, "Coloque sua chave do YouTube no código!", Toast.LENGTH_LONG).show()
                         } else {
                             if (rtmpCamera?.prepareAudio() == true && rtmpCamera?.prepareVideo() == true) {
