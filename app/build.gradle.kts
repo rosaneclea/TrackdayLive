@@ -41,6 +41,6 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-location:21.2.0")
     
-    // Bilioteca da Câmera RTMP (YouTube Live) - Versão Correta!
-    implementation("com.github.pedroSG94.rtmp-rtsp-stream-client-java:rtplibrary:2.2.9")
+    // Motor de Vídeo Moderno e Oficial compatível com Gradle 8.5+
+    implementation("com.github.pedroSG94.RootEncoder:library:2.4.4")
 }
