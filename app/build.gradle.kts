@@ -40,5 +40,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
 
     implementation("com.google.android.gms:play-services-location:21.2.0")
-    implementation("com.github.pedroSG94.RootEncoder:library:2.4.4")
+    
+    // Bilioteca da Câmera RTMP (YouTube Live) - Versão Correta!
+    implementation("com.github.pedroSG94.rtmp-rtsp-stream-client-java:rtplibrary:2.2.9")
 }
