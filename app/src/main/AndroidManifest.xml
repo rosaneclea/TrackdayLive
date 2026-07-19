@@ -1,29 +1,72 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+package com.trackday.live
 
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+import android.Manifest
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
-    <uses-feature android:name="android.hardware.camera" />
-    <uses-feature android:name="android.hardware.camera.autofocus" />
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    TrackDayApp()
+                }
+            }
+        }
+    }
+}
 
-    <application
-        android:allowBackup="true"
-        android:label="TrackDay Live">
-        
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:screenOrientation="landscape"
-            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-            android:configChanges="orientation|screenSize|keyboardHidden">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
+@Composable
+fun TrackDayApp() {
+    // Lista de permissões que o seu aplicativo precisa (baseado no seu AndroidManifest)
+    val permissionsToRequest = arrayOf(
+        Manifest.permission.CAMERA,
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    )
+
+    var permissionsGranted by remember { mutableStateOf(false) }
+
+    // Lançador que pede as permissões pro usuário
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // Verifica se todas as permissões importantes foram aceitas
+        permissionsGranted = permissions[Manifest.permission.CAMERA] == true &&
+                             permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+    }
+
+    // Pede as permissões assim que a tela abre
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(permissionsToRequest)
+    }
+
+    // O que vai aparecer na tela dependendo da permissão
+    if (permissionsGranted) {
+        // AQUI ENTRARÁ O CÓDIGO DA CÂMERA E DO VELOCÍMETRO
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Permissões concedidas! ✅", style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = "Espaço reservado para a Câmera e Velocidade (0 km/h)")
+            }
+        }
+    } else {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(text = "Precisamos das permissões de Câmera e GPS para funcionar.")
+        }
+    }
+}
