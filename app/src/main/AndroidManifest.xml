@@ -84,7 +84,6 @@ fun CameraAndSpeedScreen() {
     val context = LocalContext.current
     var speedKmH by remember { mutableIntStateOf(0) }
 
-    // Configuração do GPS para atualizar a cada 1 segundo
     DisposableEffect(Unit) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).build()
@@ -93,7 +92,7 @@ fun CameraAndSpeedScreen() {
             override fun onLocationResult(result: LocationResult) {
                 for (location in result.locations) {
                     if (location.hasSpeed()) {
-                        speedKmH = (location.speed * 3.6).roundToInt() // Converte m/s para km/h
+                        speedKmH = (location.speed * 3.6).roundToInt()
                     }
                 }
             }
@@ -106,10 +105,8 @@ fun CameraAndSpeedScreen() {
         }
     }
 
-    // Tela com a Câmera no fundo e Velocidade na frente
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         
-        // Câmera Traseira
         AndroidView(
             factory = { ctx ->
                 SurfaceView(ctx).apply {
@@ -139,7 +136,6 @@ fun CameraAndSpeedScreen() {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Marcador de Velocidade
         Text(
             text = "$speedKmH km/h",
             color = Color.White,
