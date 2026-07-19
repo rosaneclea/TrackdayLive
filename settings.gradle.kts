@@ -10,6 +10,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Sintaxe correta e segura exigida pelo Gradle 8.5+
         maven { url = uri("https://jitpack.io") }
     }
 }
