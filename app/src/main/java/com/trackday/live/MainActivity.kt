@@ -37,8 +37,6 @@ import kotlin.math.roundToInt
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Mantém a tela ligada durante a pilotagem
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
         setContent {
@@ -95,7 +93,6 @@ fun LiveCameraAndSpeedScreen() {
     var isStreaming by remember { mutableStateOf(false) }
     var rtmpCamera by remember { mutableStateOf<RtmpCamera1?>(null) }
     
-    // Insira sua Stream Key do YouTube aqui antes de gerar o APK definitivo
     val youtubeStreamKey = "COLE_SUA_CHAVE_AQUI" 
     val youtubeUrl = "rtmp://a.rtmp.youtube.com/live2/$youtubeStreamKey"
 
@@ -108,7 +105,6 @@ fun LiveCameraAndSpeedScreen() {
                 for (location in result.locations) {
                     if (location.hasSpeed()) {
                         val rawSpeed = location.speed * 3.6
-                        // Filtro de ruído físico do sensor de GPS parado
                         speedKmH = if (rawSpeed < 5.0) 0 else rawSpeed.roundToInt()
                     }
                 }
