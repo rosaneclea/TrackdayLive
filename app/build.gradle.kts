@@ -41,6 +41,6 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-location:21.2.0")
     
-    // Mantenha APENAS esta linha de vídeo. Ela casa perfeitamente com o MainActivity.kt moderno
+    // Motor de Vídeo Moderno e Único (Sem conflito de bibliotecas antigas)
     implementation("com.github.pedroSG94.RootEncoder:library:2.4.4")
 }
