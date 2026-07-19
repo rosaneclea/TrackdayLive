@@ -2,17 +2,20 @@ package com.trackday.live
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.hardware.Camera
 import android.os.Bundle
 import android.os.Looper
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +33,10 @@ import kotlin.math.roundToInt
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // MODIFICAÇÃO DO ANDROID: Mantém a tela sempre ligada
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        
         setContent {
             MaterialTheme {
                 Surface(
@@ -84,7 +91,6 @@ fun CameraAndSpeedScreen() {
     val context = LocalContext.current
     var speedKmH by remember { mutableIntStateOf(0) }
     var hasGpsSignal by remember { mutableStateOf(false) }
-    var cameraError by remember { mutableStateOf("") }
 
     // Gerenciador do GPS
     DisposableEffect(Unit) {
@@ -93,10 +99,12 @@ fun CameraAndSpeedScreen() {
         
         val locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                hasGpsSignal = true // Detectou satélite
+                hasGpsSignal = true
                 for (location in result.locations) {
                     if (location.hasSpeed()) {
-                        speedKmH = (location.speed * 3.6).roundToInt()
+                        val rawSpeed = location.speed * 3.6
+                        // FILTRO DE RUÍDO: Se a velocidade for menor que 5 km/h, mostramos 0.
+                        speedKmH = if (rawSpeed < 5.0) 0 else rawSpeed.roundToInt()
                     }
                 }
             }
@@ -111,7 +119,7 @@ fun CameraAndSpeedScreen() {
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         
-        // Câmera nativa robusta
+        // CÂMERA DE FUNDO
         AndroidView(
             factory = { ctx ->
                 SurfaceView(ctx).apply {
@@ -120,11 +128,8 @@ fun CameraAndSpeedScreen() {
                         
                         override fun surfaceCreated(holder: SurfaceHolder) {
                             try {
-                                // Força a abertura da câmera 0 (Traseira Principal)
                                 camera = Camera.open(0)
                                 camera?.setDisplayOrientation(0)
-                                
-                                // Ajusta os parâmetros para evitar travamento
                                 val params = camera?.parameters
                                 if (params != null) {
                                     val focusModes = params.supportedFocusModes
@@ -133,25 +138,16 @@ fun CameraAndSpeedScreen() {
                                     }
                                     camera?.parameters = params
                                 }
-                                
                                 camera?.setPreviewDisplay(holder)
                                 camera?.startPreview()
-                                cameraError = "" // Limpa o erro se funcionou
-                            } catch (e: Exception) {
-                                cameraError = "Erro na câmera: ${e.message}"
-                                e.printStackTrace()
-                            }
+                            } catch (e: Exception) { e.printStackTrace() }
                         }
-                        
                         override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-                        
                         override fun surfaceDestroyed(holder: SurfaceHolder) {
                             try {
                                 camera?.stopPreview()
                                 camera?.release()
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+                            } catch (e: Exception) { e.printStackTrace() }
                         }
                     })
                 }
@@ -159,28 +155,60 @@ fun CameraAndSpeedScreen() {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Se a câmera falhar, exibe o erro na tela para podermos debugar
-        if (cameraError.isNotEmpty()) {
-            Text(
-                text = cameraError,
-                color = Color.Red,
-                modifier = Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = 0.7f)).padding(16.dp)
-            )
+        // 1. MOCKUP: MINIMAPA DA PISTA (Canto Superior Direito)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(120.dp, 100.dp)
+                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                .padding(8.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Text(text = "Interlagos", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                // Aqui no futuro entra o canvas desenhando a pista com as coordenadas GPS
+                Text(text = "🗺️ Desenho Pista", color = Color.Red, fontSize = 10.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                Text(text = "Best: 1:45.320", color = Color.Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
         }
 
-        // Layout de Velocidade e Status do GPS
+        // 2. MOCKUP: RANKING / POSIÇÃO (Canto Superior Esquerdo)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                .padding(8.dp)
+        ) {
+            Column {
+                Text(text = "POSIÇÃO", color = Color.Gray, fontSize = 10.sp)
+                Text(text = "P3 / 12", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "▲ +0.5s P2", color = Color.Green, fontSize = 12.sp)
+            }
+        }
+
+        // 3. VELOCÍMETRO CENTRAL (Corrigido para zerar quando parado)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp)
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(horizontal = 24.dp, vertical = 8.dp),
+                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                .padding(horizontal = 32.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (hasGpsSignal) "$speedKmH km/h" else "Buscando GPS...",
+                text = if (hasGpsSignal) "$speedKmH" else "--",
                 color = if (hasGpsSignal) Color.White else Color.Yellow,
-                fontSize = if (hasGpsSignal) 48.sp else 24.sp,
+                fontSize = 64.sp,
+                fontWeight = FontWeight.Black
+            )
+            Text(
+                text = if (hasGpsSignal) "KM/H" else "Buscando GPS...",
+                color = Color.Gray,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
         }
