@@ -2,6 +2,7 @@ package com.trackday.live
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.os.Bundle
 import android.os.Looper
 import android.view.SurfaceHolder
@@ -37,6 +38,8 @@ import kotlin.math.roundToInt
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // SEGURANÇA UX: Impede a tela de apagar ou bloquear durante a corrida
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
         setContent {
@@ -76,7 +79,7 @@ fun TrackDayApp() {
     } else {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
             Text(
-                text = "Precisamos das permissões de Câmera, Microfone e GPS para a LIVE.",
+                text = "Precisamos das permissões de Câmera, Microfone e GPS.\nPor favor, aceite para continuar.",
                 color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp)
             )
         }
@@ -90,15 +93,15 @@ fun LiveCameraAndSpeedScreen() {
     var speedKmH by remember { mutableIntStateOf(0) }
     var hasGpsSignal by remember { mutableStateOf(false) }
     
-    // Controle da Transmissão
+    // Controle da Transmissão do YouTube
     var isStreaming by remember { mutableStateOf(false) }
     var rtmpCamera by remember { mutableStateOf<RtmpCamera1?>(null) }
     
-    // DICA: COLOQUE SUA CHAVE DO YOUTUBE AQUI!
+    // Lembre-se de colar sua chave do YouTube aqui futuramente!
     val youtubeStreamKey = "COLE_SUA_CHAVE_AQUI" 
     val youtubeUrl = "rtmp://a.rtmp.youtube.com/live2/$youtubeStreamKey"
 
-    // GPS
+    // Gerenciador do GPS (Com correção do erro de 3km/h parado)
     DisposableEffect(Unit) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).build()
@@ -108,6 +111,7 @@ fun LiveCameraAndSpeedScreen() {
                 for (location in result.locations) {
                     if (location.hasSpeed()) {
                         val rawSpeed = location.speed * 3.6
+                        // CORREÇÃO: Filtro para ignorar oscilações abaixo de 5 km/h
                         speedKmH = if (rawSpeed < 5.0) 0 else rawSpeed.roundToInt()
                     }
                 }
@@ -119,15 +123,13 @@ fun LiveCameraAndSpeedScreen() {
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         
-        // Câmera do RootEncoder (Prepara para RTMP)
+        // 1. CÂMERA DE FUNDO (Preparada para o YouTube)
         AndroidView(
             factory = { ctx ->
                 val surfaceView = SurfaceView(ctx)
-                
                 val connectChecker = object : ConnectCheckerRtmp {
                     override fun onConnectionStartedRtmp(rtmpUrl: String) {}
                     override fun onConnectionSuccessRtmp() {
-                        // O Toast precisa rodar na thread principal
                         (ctx as Activity).runOnUiThread {
                             Toast.makeText(ctx, "LIVE INICIADA!", Toast.LENGTH_SHORT).show()
                             isStreaming = true
@@ -170,12 +172,46 @@ fun LiveCameraAndSpeedScreen() {
             modifier = Modifier.fillMaxSize()
         )
 
-        // BOTÃO DE GRAVAR / TRANSMITIR
+        // 2. MAPA E VOLTAS (Canto Superior Direito)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(120.dp, 100.dp)
+                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                .padding(8.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Text(text = "Pista Atual", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "🗺️ Mapeamento", color = Color.Red, fontSize = 10.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                Text(text = "Best: 1:45.320", color = Color.Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // 3. RANKING E POSIÇÃO (Canto Superior Esquerdo)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                .padding(8.dp)
+        ) {
+            Column {
+                Text(text = "POSIÇÃO", color = Color.Gray, fontSize = 10.sp)
+                Text(text = "P3 / 12", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "▲ +0.5s P2", color = Color.Green, fontSize = 12.sp)
+            }
+        }
+
+        // 4. BOTÃO DE LIVE YOUTUBE (Canto Central Direito)
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(32.dp)
-                .size(70.dp)
+                .padding(end = 32.dp, top = 32.dp)
+                .size(60.dp)
                 .clip(CircleShape)
                 .background(if (isStreaming) Color.Gray else Color.Red)
                 .clickable {
@@ -186,7 +222,7 @@ fun LiveCameraAndSpeedScreen() {
                             if (rtmpCamera?.prepareAudio() == true && rtmpCamera?.prepareVideo() == true) {
                                 rtmpCamera?.startStream(youtubeUrl)
                             } else {
-                                Toast.makeText(context, "Erro ao preparar áudio/vídeo", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Erro ao preparar a câmera.", Toast.LENGTH_SHORT).show()
                             }
                         }
                     } else {
@@ -198,11 +234,12 @@ fun LiveCameraAndSpeedScreen() {
             Text(
                 text = if (isStreaming) "STOP" else "LIVE",
                 color = Color.White,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
             )
         }
 
-        // VELOCÍMETRO
+        // 5. VELOCÍMETRO (Rodapé Central)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
