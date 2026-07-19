@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -33,7 +34,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = Color.Black
                 ) {
                     TrackDayApp()
                 }
@@ -66,8 +67,13 @@ fun TrackDayApp() {
     if (permissionsGranted) {
         CameraAndSpeedScreen()
     } else {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Precisamos das permissões de Câmera e GPS para funcionar.")
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+            Text(
+                text = "Precisamos das permissões de Câmera e GPS.\nAceite as permissões para continuar.",
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(16.dp)
+            )
         }
     }
 }
@@ -78,7 +84,6 @@ fun CameraAndSpeedScreen() {
     val context = LocalContext.current
     var speedKmH by remember { mutableIntStateOf(0) }
 
-    // Configuração do GPS para atualizar a cada 1 segundo (1000 ms)
     DisposableEffect(Unit) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).build()
@@ -87,8 +92,6 @@ fun CameraAndSpeedScreen() {
             override fun onLocationResult(result: LocationResult) {
                 for (location in result.locations) {
                     if (location.hasSpeed()) {
-                        // O Android devolve a velocidade em metros por segundo (m/s)
-                        // Multiplicamos por 3.6 para converter para km/h
                         speedKmH = (location.speed * 3.6).roundToInt()
                     }
                 }
@@ -102,10 +105,8 @@ fun CameraAndSpeedScreen() {
         }
     }
 
-    // Interface: Câmera no fundo e Velocidade por cima
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         
-        // Visualização da Câmera
         AndroidView(
             factory = { ctx ->
                 SurfaceView(ctx).apply {
@@ -114,8 +115,8 @@ fun CameraAndSpeedScreen() {
                         
                         override fun surfaceCreated(holder: SurfaceHolder) {
                             try {
-                                camera = Camera.open() // Abre a câmera traseira padrão
-                                camera?.setDisplayOrientation(0) // Ajusta a rotação se necessário
+                                camera = Camera.open()
+                                camera?.setDisplayOrientation(0)
                                 camera?.setPreviewDisplay(holder)
                                 camera?.startPreview()
                             } catch (e: Exception) {
@@ -135,7 +136,6 @@ fun CameraAndSpeedScreen() {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Marcador de Velocidade (Estilo TrackDay)
         Text(
             text = "$speedKmH km/h",
             color = Color.White,
@@ -144,7 +144,7 @@ fun CameraAndSpeedScreen() {
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp)
-                .background(Color.Black.copy(alpha = 0.5f)) // Fundo semitransparente para dar contraste
+                .background(Color.Black.copy(alpha = 0.6f))
                 .padding(horizontal = 24.dp, vertical = 8.dp)
         )
     }
