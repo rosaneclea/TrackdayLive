@@ -1,17 +1,31 @@
 package com.trackday.live
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.hardware.Camera
 import android.os.Bundle
+import android.os.Looper
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.location.*
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,7 +34,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = Color.Black
                 ) {
                     TrackDayApp()
                 }
@@ -31,7 +45,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TrackDayApp() {
-    // Lista de permissões que o seu aplicativo precisa (baseado no seu AndroidManifest)
     val permissionsToRequest = arrayOf(
         Manifest.permission.CAMERA,
         Manifest.permission.RECORD_AUDIO,
@@ -40,33 +53,103 @@ fun TrackDayApp() {
 
     var permissionsGranted by remember { mutableStateOf(false) }
 
-    // Lançador que pede as permissões pro usuário
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Verifica se todas as permissões importantes foram aceitas
         permissionsGranted = permissions[Manifest.permission.CAMERA] == true &&
                              permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
     }
 
-    // Pede as permissões assim que a tela abre
     LaunchedEffect(Unit) {
         permissionLauncher.launch(permissionsToRequest)
     }
 
-    // O que vai aparecer na tela dependendo da permissão
     if (permissionsGranted) {
-        // AQUI ENTRARÁ O CÓDIGO DA CÂMERA E DO VELOCÍMETRO
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Permissões concedidas! ✅", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Espaço reservado para a Câmera e Velocidade (0 km/h)")
+        CameraAndSpeedScreen()
+    } else {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+            Text(
+                text = "Precisamos das permissões de Câmera e GPS.\nAceite as permissões para continuar.",
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+    }
+}
+
+@SuppressLint("MissingPermission")
+@Composable
+fun CameraAndSpeedScreen() {
+    val context = LocalContext.current
+    var speedKmH by remember { mutableIntStateOf(0) }
+
+    // Configuração do GPS para atualizar a cada 1 segundo
+    DisposableEffect(Unit) {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).build()
+        
+        val locationCallback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult) {
+                for (location in result.locations) {
+                    if (location.hasSpeed()) {
+                        speedKmH = (location.speed * 3.6).roundToInt() // Converte m/s para km/h
+                    }
+                }
             }
         }
-    } else {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Precisamos das permissões de Câmera e GPS para funcionar.")
+
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+
+        onDispose {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
         }
+    }
+
+    // Tela com a Câmera no fundo e Velocidade na frente
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        
+        // Câmera Traseira
+        AndroidView(
+            factory = { ctx ->
+                SurfaceView(ctx).apply {
+                    holder.addCallback(object : SurfaceHolder.Callback {
+                        var camera: Camera? = null
+                        
+                        override fun surfaceCreated(holder: SurfaceHolder) {
+                            try {
+                                camera = Camera.open()
+                                camera?.setDisplayOrientation(0)
+                                camera?.setPreviewDisplay(holder)
+                                camera?.startPreview()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                        
+                        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+                        
+                        override fun surfaceDestroyed(holder: SurfaceHolder) {
+                            camera?.stopPreview()
+                            camera?.release()
+                        }
+                    })
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Marcador de Velocidade
+        Text(
+            text = "$speedKmH km/h",
+            color = Color.White,
+            fontSize = 48.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+        )
     }
 }
