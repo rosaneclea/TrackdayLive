@@ -1,151 +1,29 @@
-package com.trackday.live
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-import android.Manifest
-import android.annotation.SuppressLint
-import android.hardware.Camera
-import android.os.Bundle
-import android.os.Looper
-import android.view.SurfaceHolder
-import android.view.SurfaceView
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.google.android.gms.location.*
-import kotlin.math.roundToInt
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = Color.Black
-                ) {
-                    TrackDayApp()
-                }
-            }
-        }
-    }
-}
+    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera.autofocus" />
 
-@Composable
-fun TrackDayApp() {
-    val permissionsToRequest = arrayOf(
-        Manifest.permission.CAMERA,
-        Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.ACCESS_FINE_LOCATION
-    )
-
-    var permissionsGranted by remember { mutableStateOf(false) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        permissionsGranted = permissions[Manifest.permission.CAMERA] == true &&
-                             permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-    }
-
-    LaunchedEffect(Unit) {
-        permissionLauncher.launch(permissionsToRequest)
-    }
-
-    if (permissionsGranted) {
-        CameraAndSpeedScreen()
-    } else {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-            Text(
-                text = "Precisamos das permissões de Câmera e GPS.\nAceite as permissões para continuar.",
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(16.dp)
-            )
-        }
-    }
-}
-
-@SuppressLint("MissingPermission")
-@Composable
-fun CameraAndSpeedScreen() {
-    val context = LocalContext.current
-    var speedKmH by remember { mutableIntStateOf(0) }
-
-    DisposableEffect(Unit) {
-        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).build()
+    <application
+        android:allowBackup="true"
+        android:label="TrackDay Live"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         
-        val locationCallback = object : LocationCallback() {
-            override fun onLocationResult(result: LocationResult) {
-                for (location in result.locations) {
-                    if (location.hasSpeed()) {
-                        speedKmH = (location.speed * 3.6).roundToInt()
-                    }
-                }
-            }
-        }
-
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-
-        onDispose {
-            fusedLocationClient.removeLocationUpdates(locationCallback)
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        
-        AndroidView(
-            factory = { ctx ->
-                SurfaceView(ctx).apply {
-                    holder.addCallback(object : SurfaceHolder.Callback {
-                        var camera: Camera? = null
-                        
-                        override fun surfaceCreated(holder: SurfaceHolder) {
-                            try {
-                                camera = Camera.open()
-                                camera?.setDisplayOrientation(0)
-                                camera?.setPreviewDisplay(holder)
-                                camera?.startPreview()
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
-                        
-                        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-                        
-                        override fun surfaceDestroyed(holder: SurfaceHolder) {
-                            camera?.stopPreview()
-                            camera?.release()
-                        }
-                    })
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        Text(
-            text = "$speedKmH km/h",
-            color = Color.White,
-            fontSize = 48.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(horizontal = 24.dp, vertical = 8.dp)
-        )
-    }
-}
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
