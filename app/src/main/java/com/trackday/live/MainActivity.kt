@@ -26,20 +26,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.location.*
-import com.pedro.rtmp.utils.ConnectCheckerRtmp
-import com.pedro.rtplibrary.rtmp.RtmpCamera1
+import com.pedro.common.ConnectChecker
+import com.pedro.library.rtmp.RtmpCamera1
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // SEGURANÇA UX: Impede a tela de apagar ou bloquear durante a corrida
+        // Mantém a tela ligada durante a pilotagem
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
         setContent {
@@ -80,7 +79,7 @@ fun TrackDayApp() {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
             Text(
                 text = "Precisamos das permissões de Câmera, Microfone e GPS.\nPor favor, aceite para continuar.",
-                color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp)
+                color = Color.White, modifier = Modifier.padding(16.dp)
             )
         }
     }
@@ -93,15 +92,13 @@ fun LiveCameraAndSpeedScreen() {
     var speedKmH by remember { mutableIntStateOf(0) }
     var hasGpsSignal by remember { mutableStateOf(false) }
     
-    // Controle da Transmissão do YouTube
     var isStreaming by remember { mutableStateOf(false) }
     var rtmpCamera by remember { mutableStateOf<RtmpCamera1?>(null) }
     
-    // Lembre-se de colar sua chave do YouTube aqui futuramente!
+    // Insira sua Stream Key do YouTube aqui antes de gerar o APK definitivo
     val youtubeStreamKey = "COLE_SUA_CHAVE_AQUI" 
     val youtubeUrl = "rtmp://a.rtmp.youtube.com/live2/$youtubeStreamKey"
 
-    // Gerenciador do GPS (Com correção do erro de 3km/h parado)
     DisposableEffect(Unit) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).build()
@@ -111,7 +108,7 @@ fun LiveCameraAndSpeedScreen() {
                 for (location in result.locations) {
                     if (location.hasSpeed()) {
                         val rawSpeed = location.speed * 3.6
-                        // CORREÇÃO: Filtro para ignorar oscilações abaixo de 5 km/h
+                        // Filtro de ruído físico do sensor de GPS parado
                         speedKmH = if (rawSpeed < 5.0) 0 else rawSpeed.roundToInt()
                     }
                 }
@@ -123,34 +120,33 @@ fun LiveCameraAndSpeedScreen() {
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         
-        // 1. CÂMERA DE FUNDO (Preparada para o YouTube)
         AndroidView(
             factory = { ctx ->
                 val surfaceView = SurfaceView(ctx)
-                val connectChecker = object : ConnectCheckerRtmp {
-                    override fun onConnectionStartedRtmp(rtmpUrl: String) {}
-                    override fun onConnectionSuccessRtmp() {
+                val connectChecker = object : ConnectChecker {
+                    override fun onConnectionStarted(url: String) {}
+                    override fun onConnectionSuccess() {
                         (ctx as Activity).runOnUiThread {
                             Toast.makeText(ctx, "LIVE INICIADA!", Toast.LENGTH_SHORT).show()
                             isStreaming = true
                         }
                     }
-                    override fun onConnectionFailedRtmp(reason: String) {
+                    override fun onConnectionFailed(reason: String) {
                         (ctx as Activity).runOnUiThread {
-                            Toast.makeText(ctx, "Falha: $reason", Toast.LENGTH_LONG).show()
+                            Toast.makeText(ctx, "Falha na Live: $reason", Toast.LENGTH_LONG).show()
                             rtmpCamera?.stopStream()
                             isStreaming = false
                         }
                     }
-                    override fun onNewBitrateRtmp(bitrate: Long) {}
-                    override fun onDisconnectRtmp() {
+                    override fun onNewBitrate(bitrate: Long) {}
+                    override fun onDisconnect() {
                         (ctx as Activity).runOnUiThread {
                             Toast.makeText(ctx, "LIVE ENCERRADA", Toast.LENGTH_SHORT).show()
                             isStreaming = false
                         }
                     }
-                    override fun onAuthErrorRtmp() {}
-                    override fun onAuthSuccessRtmp() {}
+                    override fun onAuthError() {}
+                    override fun onAuthSuccess() {}
                 }
 
                 rtmpCamera = RtmpCamera1(surfaceView, connectChecker)
@@ -172,7 +168,7 @@ fun LiveCameraAndSpeedScreen() {
             modifier = Modifier.fillMaxSize()
         )
 
-        // 2. MAPA E VOLTAS (Canto Superior Direito)
+        // Painel Superior Direito: Mapa Mental do Percurso
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -190,7 +186,7 @@ fun LiveCameraAndSpeedScreen() {
             }
         }
 
-        // 3. RANKING E POSIÇÃO (Canto Superior Esquerdo)
+        // Painel Superior Esquerdo: Posição Atual (Ranking Online)
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -206,23 +202,23 @@ fun LiveCameraAndSpeedScreen() {
             }
         }
 
-        // 4. BOTÃO DE LIVE YOUTUBE (Canto Central Direito)
+        // Botão de Disparo da Live
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 32.dp, top = 32.dp)
+                .padding(end = 32.dp)
                 .size(60.dp)
                 .clip(CircleShape)
                 .background(if (isStreaming) Color.Gray else Color.Red)
                 .clickable {
                     if (!isStreaming) {
-                        if (youtubeStreamKey == "pqf8-ambp-ayug-978r-c5a3") {
-                            Toast.makeText(context, "Coloque sua chave do YouTube no código!", Toast.LENGTH_LONG).show()
+                        if (youtubeStreamKey == "COLE_SUA_CHAVE_AQUI") {
+                            Toast.makeText(context, "Insira sua Stream Key no código!", Toast.LENGTH_LONG).show()
                         } else {
                             if (rtmpCamera?.prepareAudio() == true && rtmpCamera?.prepareVideo() == true) {
                                 rtmpCamera?.startStream(youtubeUrl)
                             } else {
-                                Toast.makeText(context, "Erro ao preparar a câmera.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Erro de Inicialização de Mídia", Toast.LENGTH_SHORT).show()
                             }
                         }
                     } else {
@@ -239,7 +235,7 @@ fun LiveCameraAndSpeedScreen() {
             )
         }
 
-        // 5. VELOCÍMETRO (Rodapé Central)
+        // Velocímetro Digital Inferior
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
