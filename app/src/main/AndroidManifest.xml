@@ -14,7 +14,6 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="TrackDay Live"
-        android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         
